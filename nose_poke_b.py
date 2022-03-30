@@ -76,11 +76,6 @@ for rec in np.arange(recordings_number):
   prev_stimulus = False
   prev_stimulus2 = False
 
-  #stim_times = [] #np.zeros(int(100*c/sampling_time))
-  #stim_times2 = [] #np.zeros(int(100*c/sampling_time))
-  #poke_times = [] #np.zeros(int(100*c/sampling_time))
-  #poke_times2 = [] #np.zeros(int(100*c/sampling_time))
-
   stim_times = np.zeros(time_array_lenght)
   stim_times2 = np.zeros(time_array_lenght)
   poke_times = np.zeros(time_array_lenght)
@@ -227,16 +222,10 @@ for rec in np.arange(recordings_number):
   total_number_stims1 = sum(stim_times)/9
   print('Total number of rewards hole 1:', total_number_stims1)
 
-
-  #p_times = np.asarray(poke_times)
-  #s_times = np.asarray(stim_times)
-  #p_times2 = np.asarray(poke_times2)
-  #s_times2 = np.asarray(stim_times2)
-  #time = np.arange(0, len(poke_times)*sampling_time, sampling_time)
+  # creating the dataframe with the data
   df_stim = pd.DataFrame({'Time': time[:c], 'Poke in 1': poke_times[:c], 'Stim from 1': stim_times[:c], 'Poke in 2': poke_times2[:c], 'Stim from 2': stim_times2[:c], 'Total_number_stim': total_number_stims1})
 
-  #df_stim = pd.DataFrame({'Time': time, 'Poke in 1': p_times, 'Stim from 1': s_times, 'Poke in 2': p_times2, 'Stim from 2': s_times2, 'Total_number_stim': total_number_stims1})
-  
+  # exporting the dataframe to a excel file
   filename = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
   df_stim.to_excel(folder + 'record_' + str(rec+1) + '_' + filename + '.xlsx')
   print('Recording number ' + str(rec + 1) + ' finished')
