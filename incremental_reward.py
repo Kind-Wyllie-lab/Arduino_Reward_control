@@ -8,16 +8,36 @@ from time import sleep
 ###############################################
 ### Parameters to change between recordings ###
 ###############################################
-recordings_number = 3
+recordings_number = 1
 # folder to store the recordings. It needs a double \ to separate folders
 folder = 'E:\\Irenie\\'
 # time in minutes to run the experiment
-time_min = 0.2 # in minutes
+time_limit = 0.1 # in minutes
 # delay before allowing another stimulation
 thres_betw_interv = 1 # in seconds
-# necessary pokes to receive the reward in each level
-pokes_per_level = [1, 2, 3, 4, 5]
 
+# necessary pokes to receive the reward in each level
+constant_levels = 3*np.ones(10) # [3, 3, .... , 3]
+linear_progression = np.arange(1, 11) # [1, 2, ..., 10]
+exp_progression = np.exp(linear_progression) # [e^1, ... , e^10]
+geom_progression = np.geomspace(1, 10, 5) # 
+log_progression = np.logspace(1, 10, num=10, base=2) # [2^1, ... , 2^10]
+
+# if repetition is required
+repeated_progression = np.repeat(linear_progression, 3)
+
+pokes_per_level = linear_progression.astype(int)
+
+print("testing the reward progression")
+level = 0
+for pokes in pokes_per_level:
+    print("level", level, ". Necessary pokes: ", pokes)
+    level = level +1
+
+good_progression = input("Should it proceed with this progression? y/n \n")
+if good_progression != "y":
+  print("Please, change the parameter to obtain the correct progression")
+  exit()
 
 ####################################################################
 ### Parameters to change if the Arduino configuration is changed ###
@@ -32,7 +52,7 @@ pin2_outduplicated = 6 # to light the led #2
 pin_start = 7 # led that will light at the beginning of each recording
 pin_buzz = 3 # feeding the speaker that will buzz at the beginning of each recording
 
-total_time = time_min*60 # in seconds
+total_time = time_limit*60 # in seconds
 time_exp_start = 1 # the speaker and led from pin3 will work for 1 second
 
 # Parameters to follow the protocol in Carlezon & Chartoff (2007)
@@ -44,8 +64,8 @@ half_sampling = sampling_time/2
 
 # multiplying by 100 because the experiment time can be expanded if the rat does not 
 # poke 5 times before the time limit passes
-time = np.arange(0, 100*total_time, sampling_time) 
-time_array_lenght = int(100*total_time/sampling_time)
+time = np.arange(0, total_time, sampling_time) 
+time_array_lenght = int(total_time/sampling_time)
 
 # recording time in samples
 rec_time = (total_time/sampling_time)
@@ -85,18 +105,29 @@ for rec in np.arange(recordings_number):
   stim_times = np.zeros(time_array_lenght)
   stim_times2 = np.zeros(time_array_lenght)
   poke_times = np.zeros(time_array_lenght)
-  poke_times2 = np.zeros(time_array_lenght)  
+  poke_times2 = np.zeros(time_array_lenght)
+
+  c = 0
+
+  time_in_each_level = []
 
   # per each recording, it goes trough the different number of pokes necessary to receive the reward
   for min_pokes in pokes_per_level:
+
+    print("New level reached.")
+    print("Necesary pokes: ", min_pokes)
     
-    c = 0
+    # The recording time limit is reached
+    if (c == rec_time):
+      break
+    
     number_of_pokes = 0
-    
+    level_time = 0
     while True:
 
-        # the number of pokes in the current level and the recording time are met
-        if (number_of_pokes >= min_pokes) and (c > rec_time):
+        # the number of pokes in the current level is met
+        if (number_of_pokes >= min_pokes) or (c == rec_time):
+          time_in_each_level.append(level_time)
           break
 
         # the buzzer and the light will be on for sampes_exp_start samples after a new level is reached
@@ -213,6 +244,9 @@ for rec in np.arange(recordings_number):
           #if prev_stimulus2 and not keep_stimulus2:
               #number_of_pokes = number_of_pokes + 1 # the second hole is not counted
               #print("stimulus increased hole 2")
+          
+          level_time = level_time + 1
+
         else:
           print("Pin 2 with no value")     
         
@@ -228,15 +262,19 @@ for rec in np.arange(recordings_number):
   board.digital[pin2_out].write(0)
   board.digital[pin2_outduplicated].write(0)
 
+  level_times = np.asarray(time_in_each_level)*sampling_time
+
   total_number_stims1 = sum(stim_times)/9
   print('Total number of rewards hole 1:', total_number_stims1)
 
   # creating the dataframe with the data
   df_stim = pd.DataFrame({'Time': time[:c], 'Poke in 1': poke_times[:c], 'Stim from 1': stim_times[:c], 'Poke in 2': poke_times2[:c], 'Stim from 2': stim_times2[:c], 'Total_number_stim': total_number_stims1})
+  df_time_per_level = pd.DataFrame({'Time_per_level (s)': level_times})
 
   # exporting the dataframe to a excel file
   filename = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
   df_stim.to_excel(folder + 'record_' + str(rec+1) + '_' + filename + '.xlsx')
+  df_time_per_level.to_excel(folder + 'record_' + str(rec+1) + '_' + filename + 'times_per_level.xlsx')
   print('Recording number ' + str(rec + 1) + ' finished')
   print('')
   
