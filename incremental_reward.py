@@ -10,18 +10,20 @@ from time import sleep
 ###############################################
 recordings_number = 1
 # folder to store the recordings. It needs a double \ to separate folders
-folder = 'E:\\Irenie\\'
+folder = 'E:\\Irenie\\test\\'
 # time in minutes to run the experiment
-time_limit = 0.1 # in minutes
+time_limit = 60 # in minutes
 # delay before allowing another stimulation
 thres_betw_interv = 1 # in seconds
 
 # necessary pokes to receive the reward in each level
-constant_levels = 3*np.ones(10) # [3, 3, .... , 3]
-linear_progression = np.arange(1, 11) # [1, 2, ..., 10]
+number_of_levels = 3
+
+constant_levels = 3*np.ones(number_of_levels) # [3, 3, .... , 3]
+linear_progression = np.arange(1, number_of_levels + 1) # [1, 2, ..., 10]
 exp_progression = np.exp(linear_progression) # [e^1, ... , e^10]
-geom_progression = np.geomspace(1, 10, 5) # 
-log_progression = np.logspace(1, 10, num=10, base=2) # [2^1, ... , 2^10]
+geom_progression = np.geomspace(1, number_of_levels, 5) # 
+log_progression = np.logspace(1, number_of_levels, num=number_of_levels, base=2) # [2^1, ... , 2^10]
 
 # if repetition is required
 repeated_progression = np.repeat(linear_progression, 3)
@@ -110,7 +112,7 @@ for rec in np.arange(recordings_number):
   c = 0
 
   time_in_each_level = []
-
+  
   # per each recording, it goes trough the different number of pokes necessary to receive the reward
   for min_pokes in pokes_per_level:
 
@@ -121,13 +123,23 @@ for rec in np.arange(recordings_number):
     if (c == rec_time):
       break
     
-    number_of_pokes = 0
+    # Initialization every time the level changes through the progression
+    number_of_pokes = 1
     level_time = 0
+    total_number_pokes = 0
+    total_number_stims = 0
+    total_number_correct_pokes = 0
+
     while True:
 
         # the number of pokes in the current level is met
-        if (number_of_pokes >= min_pokes) or (c == rec_time):
+        if (number_of_pokes > min_pokes) or (c == rec_time):
           time_in_each_level.append(level_time)
+          total_number_stims = total_number_stims + 1
+          if c < rec_time:
+            total_number_correct_pokes = total_number_correct_pokes + min_pokes
+          else: 
+            total_number_correct_pokes = total_number_correct_pokes + number_of_pokes - 1
           break
 
         # the buzzer and the light will be on for sampes_exp_start samples after a new level is reached
@@ -146,13 +158,18 @@ for rec in np.arange(recordings_number):
           prev_stimulus = keep_stimulus
           if (board.analog[pin].read() > 0.75):
 
+            # correct pokes or not, we count them all
+            if poke_times[c-1] == 0:
+              total_number_pokes = total_number_pokes + 1 
             #poke_times.append(1)
             poke_times[c] = 1
             #print("poking")
             
-            if counter < stim_len and took_nose_out and count_betw_interv > thres_betw_interv:
-              board.digital[pin_out].write(1)
-              board.digital[pin_outduplicated].write(1)
+            if counter < stim_len and took_nose_out and count_betw_interv > thres_betw_interv:              
+              # The stimulus is only given for the last poke of every level (min_pokes)
+              if (number_of_pokes == min_pokes):
+                board.digital[pin_out].write(1)
+                board.digital[pin_outduplicated].write(1)
               keep_stimulus = True    
               count_betw_interv = 0
             elif counter > stim_len:
@@ -176,8 +193,9 @@ for rec in np.arange(recordings_number):
             count_betw_interv = count_betw_interv + sampling_time
             # the stimulus is maintained
             if counter < stim_len and keep_stimulus:
-              board.digital[pin_out].write(1)
-              board.digital[pin_outduplicated].write(1)
+              if (number_of_pokes == min_pokes):
+                board.digital[pin_out].write(1)
+                board.digital[pin_outduplicated].write(1)
               counter = counter + sampling_time
             
             else:
@@ -188,7 +206,8 @@ for rec in np.arange(recordings_number):
               keep_stimulus = False
           
           #stim_times.append(int(keep_stimulus))
-          stim_times[c] = int(keep_stimulus)
+          if (number_of_pokes == min_pokes):
+            stim_times[c] = int(keep_stimulus)
 
           # A whole stimulus has finished
           if prev_stimulus and not keep_stimulus:
@@ -206,8 +225,9 @@ for rec in np.arange(recordings_number):
             poke_times2[c] = 1
             
             if counter2 < stim_len and took_nose_out2 and count_betw_interv2 > thres_betw_interv:
-              board.digital[pin2_out].write(0) # it does not give stimulus
-              board.digital[pin2_outduplicated].write(1) # it makes the led light
+              if (number_of_pokes == min_pokes):
+                board.digital[pin2_out].write(0) # it does not give stimulus
+                board.digital[pin2_outduplicated].write(1) # it makes the led light
               keep_stimulus2 = True    
               count_betw_interv2 = 0
             elif counter2 > stim_len:
@@ -228,8 +248,9 @@ for rec in np.arange(recordings_number):
             #poke_times2.append(0)
             count_betw_interv2 = count_betw_interv2 + sampling_time
             if counter2 < stim_len and keep_stimulus2:
-              board.digital[pin2_out].write(0) # it does not give stimulus
-              board.digital[pin2_outduplicated].write(1) # it makes the led light
+              if (number_of_pokes == min_pokes):
+                board.digital[pin2_out].write(0) # it does not give stimulus
+                board.digital[pin2_outduplicated].write(1) # it makes the led light
               counter2 = counter2 + sampling_time
             else:
               took_nose_out2 = True
@@ -264,11 +285,12 @@ for rec in np.arange(recordings_number):
 
   level_times = np.asarray(time_in_each_level)*sampling_time
 
-  total_number_stims1 = sum(stim_times)/9
-  print('Total number of rewards hole 1:', total_number_stims1)
+  total_time_poking = sum(poke_times)*sampling_time
+  print('Total time poking hole 1 (s):', total_time_poking)
+  print('Total number of rewards hole 1:', total_number_stims)
 
   # creating the dataframe with the data
-  df_stim = pd.DataFrame({'Time': time[:c], 'Poke in 1': poke_times[:c], 'Stim from 1': stim_times[:c], 'Poke in 2': poke_times2[:c], 'Stim from 2': stim_times2[:c], 'Total_number_stim': total_number_stims1})
+  df_stim = pd.DataFrame({'Time': time[:c], 'Poke in 1': poke_times[:c], 'Stim from 1': stim_times[:c], 'Poke in 2': poke_times2[:c], 'Stim from 2': stim_times2[:c], 'Total_time_poking(s)': total_time_poking, 'Correct_pokes': total_number_correct_pokes, 'Total_pokes': total_number_pokes, 'Total_number_stim': total_number_stims})
   df_time_per_level = pd.DataFrame({'Time_per_level (s)': level_times})
 
   # exporting the dataframe to a excel file
