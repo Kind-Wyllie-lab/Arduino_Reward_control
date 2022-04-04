@@ -12,7 +12,7 @@ recordings_number = 1
 # folder to store the recordings. It needs a double \ to separate folders
 folder = 'E:\\Irenie\\test\\'
 # time in minutes to run the experiment
-time_limit = 60 # in minutes
+time_limit = 0.1 # in minutes
 # delay before allowing another stimulation
 thres_betw_interv = 1 # in seconds
 
@@ -109,10 +109,14 @@ for rec in np.arange(recordings_number):
   poke_times = np.zeros(time_array_lenght)
   poke_times2 = np.zeros(time_array_lenght)
 
-  c = 0
 
+  # Initialize every new recording
+  c = 0
   time_in_each_level = []
-  
+  total_number_pokes = 0
+  total_number_stims = 0
+  total_number_correct_pokes = 0
+
   # per each recording, it goes trough the different number of pokes necessary to receive the reward
   for min_pokes in pokes_per_level:
 
@@ -126,20 +130,16 @@ for rec in np.arange(recordings_number):
     # Initialization every time the level changes through the progression
     number_of_pokes = 1
     level_time = 0
-    total_number_pokes = 0
-    total_number_stims = 0
-    total_number_correct_pokes = 0
-
     while True:
 
         # the number of pokes in the current level is met
         if (number_of_pokes > min_pokes) or (c == rec_time):
           time_in_each_level.append(level_time)
-          total_number_stims = total_number_stims + 1
           if c < rec_time:
             total_number_correct_pokes = total_number_correct_pokes + min_pokes
+            total_number_stims = total_number_stims + 1
           else: 
-            total_number_correct_pokes = total_number_correct_pokes + number_of_pokes - 1
+            total_number_correct_pokes = total_number_correct_pokes + number_of_pokes - 1            
           break
 
         # the buzzer and the light will be on for sampes_exp_start samples after a new level is reached
